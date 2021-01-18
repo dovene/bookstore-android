@@ -8,6 +8,7 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -17,6 +18,7 @@ import com.dov.ebook.databinding.ActivityMainBinding;
 import com.dov.ebook.model.BookStoreResponse;
 import com.dov.ebook.repository.BooksRepository;
 import com.dov.ebook.sharedpreferences.SharedPreferencesManager;
+import com.dov.ebook.viewmodel.BooksViewModel;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,6 +32,7 @@ public class BooksListActivity extends AppCompatActivity {
     public static String AUTHOR = "AUTHOR";
     public static String TITLE = "TITLE";
     private ActivityBooksBinding binding;
+    private BooksViewModel viewModel;
 
     public static Intent newIntent(Context context, boolean isSearchMode, String title, String author) {
         Intent intent = new Intent(context, BooksListActivity.class);
@@ -45,9 +48,16 @@ public class BooksListActivity extends AppCompatActivity {
         binding = ActivityBooksBinding.inflate(getLayoutInflater());
         View view = binding.getRoot();
         setContentView(view);
-
+        configureViewModel();
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         setViewItems();
+    }
+
+    private void configureViewModel() {
+        viewModel = new ViewModelProvider(this).get(BooksViewModel.class);
+        viewModel.getBooksLiveData().observe(this, books -> {
+            booksRecyclerViewAdapter.setBooks(books);
+        });
     }
 
     private void setViewItems() {
@@ -57,7 +67,7 @@ public class BooksListActivity extends AppCompatActivity {
         recyclerView.setAdapter(booksRecyclerViewAdapter);
         if (getIntent().getBooleanExtra(SEARCH_MODE, false)) {
             setTitle("Résultat de la recherche");
-            callService();
+            getBooks();
         } else {
             setTitle("Ma Bibliothèque");
             List<BookStoreResponse.Book> books = SharedPreferencesManager.getInstance(BooksListActivity.this).getBooks();
@@ -65,20 +75,9 @@ public class BooksListActivity extends AppCompatActivity {
         }
     }
 
-    private void callService() {
-        BooksRepository.getInstance().getBooks(getIntent().getStringExtra(TITLE), getIntent().getStringExtra(AUTHOR), new BooksRepository.BooksServiceListener() {
-            @Override
-            public void onSuccess(List<BookStoreResponse.Book> books) {
-                booksRecyclerViewAdapter.setBooks(books);
-            }
-
-            @Override
-            public void onError(Throwable throwable) {
-
-            }
-        });
+    private void getBooks() {
+        viewModel.getBooks(getIntent().getStringExtra(TITLE), getIntent().getStringExtra(AUTHOR));
     }
-
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
